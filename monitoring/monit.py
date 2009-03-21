@@ -16,6 +16,7 @@ from genshi.core import Markup
 from trac.core import *
 from trac.util.text import CRLF, unicode_passwd
 from trac.util.translation import _
+from trac.util.datefmt import to_timestamp, utc
 from trac.config import BoolOption, IntOption, ListOption, Option
 from trac.timeline import ITimelineEventProvider
 from trac.web import IRequestHandler, RequestDone, parse_query_string
@@ -58,13 +59,18 @@ class MonitCollector(Component):
             self.log.debug("MonitDB version from db is '%s', current version is '%s'" % (res['db_version'], db_version))
             if res and res.get('db_version', None) != db_version:
                 current = res['db_version']
-                db.upgrade(cur, current, db_version)
-                cur.execute("UPDATE monit SET db_version=?", (db_version,))
+                try:
+                    db.upgrade(cur, current, db_version)
+                    cur.execute("UPDATE monit SET db_version=?", (db_version,))
+                except sqlite.OperationalError, e:
+                    self.log.warning("Database upgrade from verion %s to version %s failed (%s)" % (
+                                    current, db_version, e))
         except sqlite.OperationalError, e:
             self.log.debug("Error fetching db_version %s" % e)
             #the monit table does not exist, create tables from scratch
             for stmt in db.tables:
                 cur.execute(stmt)
+            db.upgrade(cur, 1, db_version) #run all upgrades
         conn.commit()
         conn.close()
         
@@ -304,7 +310,19 @@ class MonitViewer(Component):
         if 'monit' in filters:
             monit_realm = Resource('monit')
             cur = db.cursor()
-            
+            cur.execute("SELECT * FROM event WHERE collected_sec>=? AND collected_sec<=?",
+                           (to_timestamp(start), to_timestamp(stop)))
+            for e in cur:
+                yield ('monit', datetime.fromtimestamp(e['collected_sec'], utc), 
+                        'monit', e)
+        conn.close()
+        # FIXME there is no way to get the correspondign service entry
+        # as the service table is not known (add a service_type column 
+        # to the event table AND a type column to all service tables)  
+                         
+    def render_timeline_event(self, context, field, event):
+        return tag(tag.em(event[3]['message']))
+        
     # IPermissionRequestor methods
     def get_permission_actions(self):
         """return defined permissions if any"""
@@ -346,10 +364,9 @@ class MonitViewer(Component):
 
     def process_request(self, req):
         self.log.debug("MONIT: process_request, args: %s, path_info: %s" % (req.args, req.path_info))
-        parts = [p for p in req.path_info.split('/') if p]
-        #self._send_response(req, str(parts), 'text/plain')
-        #didn't knew about req.send
-        req.send(str(parts), content_type='text/plain')
+        if 'MONIT_VIEW' in req.perm:
+            parts = [p for p in req.path_info.split('/') if p]
+            req.send(str(parts), content_type='text/plain')
     
 
     

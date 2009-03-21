@@ -74,12 +74,23 @@ def upgrade(cursor, from_version, to_version):
 
 
 # increment for schema changes   
-db_version = 1
+db_version = 2
 
 # populate with DDL statements for migrations between 
 # versions e.g. from version 0 upwards 0: ["ALTER TABLE foo ...,]"
 updates = {
- 1: []
+ 1: [
+    "ALTER TABLE process_service ADD COLUMN type INTEGER", 
+    "ALTER TABLE process_service ADD COLUMN status_message VARCHAR(255)",
+    "ALTER TABLE system_service ADD COLUMN type INTEGER", 
+    "ALTER TABLE filesystem_service ADD COLUMN type INTEGER",
+    "ALTER TABLE filesystem_service ADD COLUMN status_message VARCHAR(255)",
+    "ALTER TABLE directory_service ADD COLUMN type INTEGER",
+    "ALTER TABLE directory_service ADD COLUMN status_message VARCHAR(255)",
+    "ALTER TABLE file_service ADD COLUMN type INTEGER",
+    "ALTER TABLE file_service ADD COLUMN status_message VARCHAR(255)",
+    "ALTER TABLE event ADD COLUMN service_type INTEGER",
+    ],
  }
  
 tables = [
