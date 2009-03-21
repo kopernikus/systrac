@@ -4,7 +4,7 @@ PLUGINDIR="/home/pkoelle/trac012dev/tracenv/plugins/"
 OWNERGROUP="pkoelle:pkoelle"
 
 rm -Rf dist build *.egg-info
-python setup.py bdist_egg
+python setup_monitoring.py bdist_egg
 
 echo "Deleting plugins..."
 rm -f ${PLUGINDIR}/*

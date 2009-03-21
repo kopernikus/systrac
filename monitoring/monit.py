@@ -18,6 +18,7 @@ from trac.util.text import CRLF, unicode_passwd
 from trac.util.translation import _
 from trac.util.datefmt import to_timestamp, utc
 from trac.config import BoolOption, IntOption, ListOption, Option
+from trac.perm import IPermissionRequestor
 from trac.timeline import ITimelineEventProvider
 from trac.web import IRequestHandler, RequestDone, parse_query_string
 from trac.web.chrome import Chrome, INavigationContributor, ITemplateProvider, add_ctxtnav, \
@@ -289,7 +290,7 @@ class MonitCollector(Component):
         
 class MonitViewer(Component):
     implements(INavigationContributor, IRequestHandler,
-        ITemplateProvider, ITimelineEventProvider) #IContentConverter,
+        ITemplateProvider, ITimelineEventProvider, IPermissionRequestor)
 
     rc_file = Option('monit', 'rc_file', '/etc/monitrc',
         """monit configuration.""")
@@ -308,8 +309,8 @@ class MonitViewer(Component):
     def get_timeline_events(self, req, start, stop, filters):
         conn = self.get_db_cnx()
         if 'monit' in filters:
-            monit_realm = Resource('monit')
-            cur = db.cursor()
+            #monit_realm = Resource('monit')
+            cur = conn.cursor()
             cur.execute("SELECT * FROM event WHERE collected_sec>=? AND collected_sec<=?",
                            (to_timestamp(start), to_timestamp(stop)))
             for e in cur:
