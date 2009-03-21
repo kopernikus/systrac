@@ -1,0 +1,7 @@
+#!/bin/sh
+[ -x /usr/share/munin/munin-update ] && /usr/share/munin/munin-update $@;
+#[ -x /usr/share/munin/munin-limits ] && /usr/share/munin/munin-limits $@;
+#[ -x /usr/share/munin/munin-graph  ] && 
+#	nice /usr/share/munin/munin-graph --cron $@ 2>&1 | 
+#	fgrep -v "*** attempt to put segment in horiz list twice"
+#[ -x /usr/share/munin/munin-html   ] && nice /usr/share/munin/munin-html $@;
