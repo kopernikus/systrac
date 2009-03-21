@@ -226,7 +226,6 @@ class MonitCollector(Component):
         values = dict([(k,v) for k,v in service_data.items()
                             if type(v) not in [ListType, DictType]])
         del values['collected_usec'] #useless...
-        del values['type']
         values['monit_id'] = self.monit_id
         values['groupname'] = values['group']; del values['group'] # group is a sql kw
         
