@@ -16,7 +16,7 @@ from genshi.core import Markup
 from trac.core import *
 from trac.util.text import CRLF, unicode_passwd
 from trac.util.translation import _
-from trac.util.datefmt import to_timestamp, utc
+from trac.util.datefmt import to_timestamp, to_datetime, format_datetime, localtz, utc
 from trac.config import BoolOption, IntOption, ListOption, Option
 from trac.perm import IPermissionRequestor
 from trac.timeline import ITimelineEventProvider
@@ -306,22 +306,61 @@ class MonitViewer(Component):
             yield ('monit', _('Monit events'))
            
     def get_timeline_events(self, req, start, stop, filters):
+        self.log.debug("Monit: get_timeline_events() called")
         conn = self.get_db_cnx()
         if 'monit' in filters:
             #monit_realm = Resource('monit')
             cur = conn.cursor()
             cur.execute("SELECT * FROM event WHERE collected_sec>=? AND collected_sec<=?",
                            (to_timestamp(start), to_timestamp(stop)))
-            for e in cur:
-                yield ('monit', datetime.fromtimestamp(e['collected_sec'], utc), 
-                        'monit', e)
+            for evt in cur:
+                self.log.debug("Found monit event from %s" % datetime.fromtimestamp(evt['collected_sec']))
+                srv_table = "%s_service" % srv_types[evt['type']]
+                cur.execute("SELECT * FROM %s WHERE id=? LIMIT 1" % srv_table, (evt['service_id'],))
+                srv = cur.fetchone()
+                if srv:
+                    cur.execute("SELECT * FROM monit WHERE id=?", (srv['monit_id'],))
+                    monit = cur.fetchone()
+                    if monit:
+                        yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                            'monit@%s' % monit['localhostname'], (evt, srv, monit))
+                            
+                    self.log.warning("No monit entry with id '%s' found while rendering event '%s'." % (
+                             srv['monit_id'], evt['id']))
+                    yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                            'monit@unknown', (evt, srv, None))
+                            
+                self.log.warning("No service entry with id '%s' found while rendering event '%s'." % (
+                             evt['service_id'], evt['id']))            
+                yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                            'monit@unknown', (evt, None, None))
         conn.close()
-        # FIXME there is no way to get the correspondign service entry
-        # as the service table is not known (add a service_type column 
-        # to the event table AND a type column to all service tables)  
                          
     def render_timeline_event(self, context, field, event):
-        return tag(tag.em(event[3]['message']))
+        self.log.debug("Monit: render_timeline_event() called")
+        evt, srv, monit = event[3]
+        if field == 'url':
+            return context.href.monit(evt['id'])
+        elif field == 'title':
+            return tag(tag.em('New event'))
+        elif field == 'description':
+            if srv and monit:
+                markup = tag.div('Event on ', tag.b(monit['localhostname']),
+                                 ' for service ', tag.b(srv['name']), '(type %s) ' % srv_types.get(srv['type'], 'none'),
+                                  tag.em(evt['message']))
+                self.log.debug("Monit markup for Timeline -> %s" % str(markup))
+            elif srv:
+                markup =  tag.div('Event on ', tag.b('unknown'), ' for service ',
+                          tag.b(srv['name']), '(type %s) ' % srv_types.get(srv['type'], 'none'),
+                          tag.em(evt['message']))
+            else:
+                markup = tag.div('Event on ', tag.b('unknown'), ' for service ', 
+                         tag.b('unknown'), '(type unknown)',
+                         tag.em(evt['message']))
+                         
+                self.log.debug("Monit markup for Timeline -> %s" % str(markup))
+                
+            return markup
         
     # IPermissionRequestor methods
     def get_permission_actions(self):
@@ -337,10 +376,7 @@ class MonitViewer(Component):
 
     def get_templates_dirs(self):
         return [resource_filename(__name__, 'templates')]
-        
-#    def get_templates_dirs(self):
-#        yield resource_filename(__file__, 'templates')
-        
+             
     # INavigationContributor methods
     def get_active_navigation_item(self, req):
         if 'MONIT_VIEW' in req.perm:
@@ -366,6 +402,27 @@ class MonitViewer(Component):
         self.log.debug("MONIT: process_request, args: %s, path_info: %s" % (req.args, req.path_info))
         if 'MONIT_VIEW' in req.perm:
             parts = [p for p in req.path_info.split('/') if p]
+            if len(parts) >= 2 and parts[1] == 'xhr':
+                self._process_xhr(req, parts[1:])
+                
+            conn = self.get_db_cnx()
+            cur = conn.cursor()
+            cur.execute("SELECT * FROM monit")
+            monits = cur.fetchall()
+            self.log.debug("MonitViewer: Found monits %s" % monits)
+            for m in monits:
+                m['uptime'] = "%d days %d:%d:%d" % self.fract_sec(m['uptime'])
+            data = {'monits': monits}
+            return 'monit.html', data, 'text/html'
+
+    def fract_sec(self, s):
+        years, s = divmod(s, 31556952)
+        min, s = divmod(s, 60)
+        h, min = divmod(min, 60)
+        d, h = divmod(h, 24)
+        return d, h, min, s
+
+    def _process_xhr(self, req, parts):
             req.send(str(parts), content_type='text/plain')
     
 

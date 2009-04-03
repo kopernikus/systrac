@@ -89,7 +89,6 @@ updates = {
     "ALTER TABLE directory_service ADD COLUMN status_message VARCHAR(255)",
     "ALTER TABLE file_service ADD COLUMN type INTEGER",
     "ALTER TABLE file_service ADD COLUMN status_message VARCHAR(255)",
-    "ALTER TABLE event ADD COLUMN service_type INTEGER",
     ],
  2: [
     "ALTER TABLE host_service ADD COLUMN type INTEGER",

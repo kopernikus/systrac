@@ -8,7 +8,6 @@
   <head>
 	<title>Munin Stats</title>
 	<!--script src="http://static.simile.mit.edu/timeplot/api/1.0/timeplot-api.js" type="text/javascript"></script-->
-	<script src="http://www.netgrow.com.au/assets/files/jquery_plugins/jquery.dump.js" type="text/javascript"></script>
 	<script type="text/javascript">
 	  //<![CDATA[
 jQuery(document).ready(function ($) {
@@ -45,15 +44,6 @@ jQuery(document).ready(function ($) {
 		}); //end $.ajax
 	}); //end change
 
-/*	$("select#cat").change( function() {
-		var c = this.id;
-		$.ajax({ type: "GET",
-			url: "munin/objects/"+$("select#domain").val()+"/"+$("select#host").val()+"/"+$(this).val(),
-			dataType: "json",
-			success: json2table,
-		}); //end $.ajax
-	}); //end change
-*/
 	$("select#cat").change( function() {
 		var c = this.id;
 		$.ajax({ type: "GET",
@@ -105,9 +95,6 @@ function json2table(data, status) {
 		<select size="6" id="cat" name="category" multiple="multiple">
 		  <option py:for="c in categories" value="${c}">${c}</option>
 		</select>
-		<label>month <input type="checkbox" name="month" /></label>
-		<label>week <input type="checkbox" name="week" /></label>
-		<label>day <input type="checkbox" name="day" checked="checked"/></label>
 		<div id="stats">
 		   
 		</div>

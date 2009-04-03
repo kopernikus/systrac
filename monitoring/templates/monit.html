@@ -8,7 +8,6 @@
   <head>
 	<title>Munin Stats</title>
 	<!--script src="http://static.simile.mit.edu/timeplot/api/1.0/timeplot-api.js" type="text/javascript"></script-->
-	<script src="http://www.netgrow.com.au/assets/files/jquery_plugins/jquery.dump.js" type="text/javascript"></script>
 	<script type="text/javascript">
 	  //<![CDATA[
 jQuery(document).ready(function ($) {
@@ -44,15 +43,6 @@ jQuery(document).ready(function ($) {
 		}); //end $.ajax
 	}); //end change
 
-/*	$("select#cat").change( function() {
-		var c = this.id;
-		$.ajax({ type: "GET",
-			url: "munin/objects/"+$("select#domain").val()+"/"+$("select#host").val()+"/"+$(this).val(),
-			dataType: "json",
-			success: json2table,
-		}); //end $.ajax
-	}); //end change
-*/
 	$("select#cat").change( function() {
 		var c = this.id;
 		$.ajax({ type: "GET",
@@ -93,20 +83,12 @@ function json2table(data, status) {
 
   <body>
 	<div id="content" class="about">
-	  <h1>Munin stats</h1>
+	  <h1>Monit overview</h1>
 	  <div id="messages" style="float:right; width:450px;"></div>
-		<select id="domain" name="domain">
-		  <option py:for="d in domains" value="${d}">${d}</option>
-		</select>
-		<select id="host" name="host">
-		  <option py:for="h in hosts" value="${h}">${h}</option>
-		</select>
-		<select id="cat" name="category">
-		  <option py:for="c in categories" value="${c}">${c}</option>
-		</select>
-		<div id="stats">
-		   
-		</div>
+      <div py:for="m in monits" id="prefs">
+        <p><b>${m.localhostname}</b>(${m.platform_name}, ${m.platform_version})<br/>
+            Uptime: ${m.uptime}, Cores: ${m.platform_cpu}, Memory: ${m.platform_memory} Kb</p>
+      </div>
 	</div>
   </body>
 </html>
