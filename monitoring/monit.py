@@ -303,55 +303,78 @@ class MonitViewer(Component):
     # ITimelineEventProvider methods
     def get_timeline_filters(self, req):
         if 'MONIT_VIEW' in req.perm:
-            yield ('monit', _('Monit events'))
+            for v in srv_types.values():
+                yield ('monit_%s' % v, _('%s events' % v.capitalize()))
            
     def get_timeline_events(self, req, start, stop, filters):
         self.log.debug("Monit: get_timeline_events() called")
         conn = self.get_db_cnx()
-        if 'monit' in filters:
+        
+        myfilter = [f for f in filters if f.startswith('monit_')]
+        event_filter = [k for k,v in srv_types.items() if v in [f.split('_')[1] for f in myfilter]]
+        self.log.debug("Input: %s, filtered: %s, Types: %s" % (filters, myfilter, event_filter))
+        
+        if event_filter:
             #monit_realm = Resource('monit')
             cur = conn.cursor()
-            cur.execute("SELECT * FROM event WHERE collected_sec>=? AND collected_sec<=?",
-                           (to_timestamp(start), to_timestamp(stop)))
-            for evt in cur:
-                self.log.debug("Found monit event from %s" % datetime.fromtimestamp(evt['collected_sec']))
+            sql = "SELECT COUNT(*) AS events FROM event WHERE \
+                    collected_sec >=? AND collected_sec <=? AND type IN (%s)" % ','.join(['?' for e in event_filter])
+            cur.execute(sql, (to_timestamp(start), to_timestamp(stop))+tuple(event_filter))
+            
+            self.log.debug("There are currently %s events for the range from %s to %s" % (
+                        cur.fetchall(), start, stop))
+            
+            sql = "SELECT * FROM event WHERE collected_sec >=? \
+                    AND collected_sec <=? AND type IN (%s)" % ','.join(['?' for e in event_filter])
+            cur.execute(sql, (to_timestamp(start), to_timestamp(stop))+tuple(event_filter))
+            events = cur.fetchall()
+            
+            for evt in events:
+                self.log.debug("Found monit event  %s" % evt)
                 srv_table = "%s_service" % srv_types[evt['type']]
+                
+                #self.log.debug("Selecting service entry with %s" )
                 cur.execute("SELECT * FROM %s WHERE id=? LIMIT 1" % srv_table, (evt['service_id'],))
                 srv = cur.fetchone()
+                #self.log.debug("Found service entry %s" % srv)
+                
                 if srv:
                     cur.execute("SELECT * FROM monit WHERE id=?", (srv['monit_id'],))
                     monit = cur.fetchone()
+                    #self.log.debug("Found monit instance %s" % monit)
+                    
                     if monit:
-                        yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                        msg = ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
                             'monit@%s' % monit['localhostname'], (evt, srv, monit))
-                            
-                    self.log.warning("No monit entry with id '%s' found while rendering event '%s'." % (
+                    else:        
+                        self.log.warning("No monit entry with id '%s' found while rendering event '%s'." % (
                              srv['monit_id'], evt['id']))
-                    yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                        msg = ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
                             'monit@unknown', (evt, srv, None))
-                            
-                self.log.warning("No service entry with id '%s' found while rendering event '%s'." % (
+                else:            
+                    self.log.warning("No service entry with id '%s' found while rendering event '%s'." % (
                              evt['service_id'], evt['id']))            
-                yield ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
+                    msg = ('monit', datetime.fromtimestamp(evt['collected_sec'], utc), 
                             'monit@unknown', (evt, None, None))
+                yield msg
         conn.close()
                          
     def render_timeline_event(self, context, field, event):
-        self.log.debug("Monit: render_timeline_event() called")
+        #self.log.debug("Monit: render_timeline_event() called")
         evt, srv, monit = event[3]
         if field == 'url':
-            return context.href.monit(evt['id'])
+            return context.href.monit('event', evt['id'])
         elif field == 'title':
-            return tag(tag.em('New event'))
+            return tag(tag.em('New ', srv_types.get(evt['type'], ''), ' event'))
         elif field == 'description':
             if srv and monit:
                 markup = tag.div('Event on ', tag.b(monit['localhostname']),
-                                 ' for service ', tag.b(srv['name']), '(type %s) ' % srv_types.get(srv['type'], 'none'),
+                                 ' for service ', tag.b(srv['name']), '(type %s) ' % srv_types.get(evt['type'], ''),
                                   tag.em(evt['message']))
                 self.log.debug("Monit markup for Timeline -> %s" % str(markup))
             elif srv:
                 markup =  tag.div('Event on ', tag.b('unknown'), ' for service ',
-                          tag.b(srv['name']), '(type %s) ' % srv_types.get(srv['type'], 'none'),
+                          tag.b(srv['name']), '(type %s) ' % srv_types.get(evt['type'], ''),
                           tag.em(evt['message']))
             else:
                 markup = tag.div('Event on ', tag.b('unknown'), ' for service ', 
