@@ -21,8 +21,9 @@ from trac.config import BoolOption, IntOption, ListOption, Option
 from trac.perm import IPermissionRequestor
 from trac.timeline import ITimelineEventProvider
 from trac.web import IRequestHandler, RequestDone, parse_query_string
-from trac.web.chrome import Chrome, INavigationContributor, ITemplateProvider, add_ctxtnav, \
-    add_link, add_script, add_stylesheet, add_warning, prevnext_nav
+from trac.web.chrome import Chrome, INavigationContributor, ITemplateProvider,\
+        add_ctxtnav, add_link, add_script, add_stylesheet, add_warning, \
+        prevnext_nav
 
 import db
 from db import sqlite, DictConnection, db_version
