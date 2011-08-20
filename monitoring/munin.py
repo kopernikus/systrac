@@ -35,8 +35,9 @@ class MuninStatsViewer(Component):
     # IPermissionRequestor methods
     def get_permission_actions(self):
         """return defined permissions if any"""
-        actions = ['MUNIN_VIEW', 'MUNIN_SAVE']
-        return actions + [('MUNIN_ADMIN', actions)]
+        objects = self._get_permission_objects()
+        actions = ['MUNIN_ADMIN', 'MUNIN_VIEW', 'MUNIN_SAVE']
+        return actions + objects
 
     # ITemplateProvider methods
     def get_htdocs_dirs(self):
@@ -86,6 +87,18 @@ class MuninStatsViewer(Component):
                  }
         return 'munin.html', data, 'text/html'
 
+    #Implementation
+    def _get_permission_objects(self):
+        #return a list of hosts or hostgroups from munin
+        result = []
+        blacklist = ['plugin-state', 'datafile','limits', 
+                'munin-graph.stats', 'munin-update.stats']
+        items = os.listdir(self.rrd_path)
+        for item in items:
+            if item not in blacklist:
+                result.append('VIEW_MUNIN_'+item.upper())
+        return result
+
     def _send_objects(self, req, params):
         if len(params) == 1:
             self._send_hostnames(req, params[0])
@@ -100,7 +113,7 @@ class MuninStatsViewer(Component):
         if d:
             res = d.keys()
         else: res = []
-        res.insert(0, '<host>')
+        #res.insert(0, '<host>')
         self._send_response(req, str(res), 'application/json')
 
     def _send_categories(self, req, domain, host):
@@ -115,7 +128,7 @@ class MuninStatsViewer(Component):
             res.sort()
         except KeyError:
             pass
-        res.insert(0, '<category>')
+        #res.insert(0, '<category>')
         self._send_response(req, str(res), 'application/json')
         
     def _send_cat_details(self, req, dom, node, cat):
