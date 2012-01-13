@@ -52,9 +52,7 @@ class IMonitoringPanelProvider(Interface):
         
 class MonitoringAdminModule(Component):
     """Web administration interface for monitoring"""
-
     implements(INavigationContributor, IRequestHandler, ITemplateProvider)
-
     panel_providers = ExtensionPoint(IMonitoringPanelProvider)
 
     def __init__(self, *args, **kwargs):
@@ -71,8 +69,8 @@ class MonitoringAdminModule(Component):
         # admin panel is available
         panels, providers = self._get_panels(req)
         if panels:
-            yield 'mainnav', 'monitoring', tag.a(_('Monitoring'), href=req.href.monitoring(),
-                                            title=_('Monitoring'))
+            yield ('mainnav', 'monitoring', tag.a(_('Monitoring'), 
+                   href=req.href.monitoring(), title=_('Monitoring')))
 
     # IRequestHandler methods
 
