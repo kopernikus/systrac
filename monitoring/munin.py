@@ -91,8 +91,12 @@ class MuninStatsViewer(Component):
     def _get_permission_objects(self):
         #return a list of hosts or hostgroups from munin
         result = []
+
+        #stupid hack, everything not in blacklist is probably a hostgroup
         blacklist = ['plugin-state', 'datafile','limits', 
-                'munin-graph.stats', 'munin-update.stats']
+                'munin-graph.stats', 'munin-update.stats',
+                '.viminfo', '.bash_history','munin-update-stats.tmp']
+        
         items = os.listdir(self.rrd_path)
         for item in items:
             if item not in blacklist:
@@ -143,19 +147,36 @@ class MuninStatsViewer(Component):
     def _send_values(self, req, params):
         """get values, for now we're just generate and load images
         through munin"""
+        period_mapping = {
+                'daily':'--noweek --nomonth --noyear',
+                'weekly':'--noday --nomonth --noyear',
+                'monthly':'--noday --noweek --noyear',
+                'yearly':'--noday --noweek --nomonth'
+            }
         raw = self.get_available_stats()
         domain, host, cat = params
+        hosts = ' '.join(['--host '+h for h in host.split(',')])
         srvs = ' '.join(['--service '+c for c in cat.split(',')])
-        p = Popen('/usr/share/munin/munin-graph --force-root --list-images --nomonth --noyear --host '+host+' '+srvs, shell=True, close_fds=True, stdout=PIPE, stderr=PIPE)
-                    
+        period = req.args.get('period', 'daily')
+        if period not in period_mapping.keys():
+            period = 'daily'
+        cmd = 'su -p -c "/usr/share/munin/munin-graph  --list-images '+period_mapping[period]+' '+hosts+' '+srvs+'" munin'
+        p = Popen(cmd, shell=True, close_fds=True, stdout=PIPE, stderr=PIPE)
+        self.log.debug('munin command executed was: '+cmd)
+
         picdir = joinpath(self.env.path, 'htdocs', 'munin')
         if not os.path.isdir(picdir):
             os.mkdir(picdir)
         pics = [pic.strip() for pic in p.stdout.readlines()]
         self.log.debug("OUTPUT from popen call to munin-graph: %s (stderr: %s" % (pics, p.stderr.read()))
+        new_pics = []
         for pic in pics:
-            shutil.copy(pic, picdir)
-        pics = [self.env.href()+'/chrome/site/munin/'+os.path.basename(p) for p in pics]
+            #newer munin breaks naming, join host and metric 
+            parts = pic.split('/')
+            new_name = '-'.join(parts[-2:])
+            new_pics.append(new_name)
+            shutil.copy(pic, joinpath(picdir, new_name))
+        pics = [self.env.href()+'/chrome/site/munin/'+os.path.basename(p) for p in new_pics]
         self._send_response(req, str(pics), 'application/json')
         
     def _send_response(self, req, data, content_type):

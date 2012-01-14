@@ -1,18 +1,18 @@
 <!DOCTYPE html
-    PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
-    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+	PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+	"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
 <html xmlns="http://www.w3.org/1999/xhtml"
-      xmlns:py="http://genshi.edgewall.org/"
-      xmlns:xi="http://www.w3.org/2001/XInclude">
+	  xmlns:py="http://genshi.edgewall.org/"
+	  xmlns:xi="http://www.w3.org/2001/XInclude">
   <xi:include href="layout.html" />
   <head>
-    <title>Munin Stats</title>
-    <script type="text/javascript">
-      //<![CDATA[
-  $(document).ready(function () {
-     var count = 1;
+	<title>Munin Stats</title>
+	<script type="text/javascript">
+	  //<![CDATA[
+jQuery(document).ready(function ($) {
+	 var count = 1;
 
-     //KISS
+        //KISS
      $("select#domain").change( function() {
         var d = this.id;
         $.ajax({ 
@@ -21,13 +21,13 @@
             dataType: "json", 
             success: function(data, status) {
                 $("select#host").empty();
-                for(d in data) {        
+                for(d in data) { 		
                     $("select#host").append(new Option(data[d], data[d]));
                 } //end for
             } //end success
         }); //end $.ajax
     }); //end change
-    
+
     $("select#host").change( function() {
         var d = this.id;
         $.ajax({ type: "GET",
@@ -45,8 +45,19 @@
 
     $("select#cat").change( function() {
         var c = this.id;
+        var p = $("input:radio:checked[name='period']").val();
         $.ajax({ type: "GET",
-            url: "munin/values/"+$("select#domain").val()+"/"+$("select#host").val()+"/"+$(this).val(),
+            url: "munin/values/"+$("select#domain").val()+"/"+$("select#host").val()+"/"+$(this).val()+"?period="+p,
+            dataType: "json",
+            success: loadImages
+        }); //end $.ajax
+    }); //end change
+    
+    $("input:radio[name='period']").change( function() {
+        var p = $("input:radio:checked[name='period']").val();
+        var cats = $("select#cat").val();
+        $.ajax({ type: "GET",
+            url: "munin/values/"+$("select#domain").val()+"/"+$("select#host").val()+"/"+cats+"?period="+p,
             dataType: "json",
             success: loadImages
         }); //end $.ajax
@@ -54,7 +65,11 @@
  }); //end ready()
 
 function loadImages(data, status) {
-    $("div#stats").empty();
+    $("div#stats").empty()
+    //var cats = $("select#cat")
+    //for(idx in cats) {
+    //    var container = $("div#stats").append("<div style='width:500px' id='"+cats[idx]+"'></div>");
+        
     for(idx in data) {
         img = $('<img src="'+data[idx]+'"/>');
         $("div#stats").append(img);
@@ -62,37 +77,51 @@ function loadImages(data, status) {
 }
 
 function json2table(data, status) {
-    var str = "<table>";
-    for(entry in data) { 
-        for(attr in data[entry]) {
-            if(attr.match(/graph_.+/)) {
-                str += "<tr><td><b>"+attr+":</b></td><td>"+data[entry][attr]+"</td></tr>";
-            }
-        }
-    }
-    str += "</table>";
-    $("div#messages").html(str);
+	var str = "<table>";
+	for(entry in data) { 
+		for(attr in data[entry]) {
+			if(attr.match(/graph_.+/)) {
+				str += "<tr><td><b>"+attr+":</b></td><td>"+data[entry][attr]+"</td></tr>";
+			}
+		}
+	}
+	str += "</table>";
+	$("div#messages").html(str);
 }
-      //]]>
-    </script>
+	  //]]>
+	</script>
   </head>
 
   <body>
-    <div id="content" class="about">
-      <h1>Munin stats</h1>
-      <div id="messages" style="float:right; width:450px;"></div>
-        <select size="6" id="domain" name="domain">
-          <option py:for="d in domains" value="${d}">${d}</option>
-        </select>
-        <select size="6" id="host" name="host">
-          <option py:for="h in hosts" value="${h}">${h}</option>
-        </select>
-        <select size="12" id="cat" name="category" multiple="multiple">
-          <option py:for="c in categories" value="${c}">${c}</option>
-        </select>
-        <div id="stats">
-           
-        </div>
-    </div>
+	<div id="content" class="about">
+	  <h1>Munin stats</h1>
+      <div id="selection" style="float:right">
+		<label>Hostgroups<br/>
+        <select size="6" id="domain" name="domain" style="width: 150px;">
+		  <option py:for="d in domains" value="${d}">${d}</option>
+		</select>
+        </label>
+        <br/><br/>
+        <label>Hosts<br/>
+        <select size="6" id="host" name="host" multiple="multiple" style="width: 150px;">
+		  <option py:for="h in hosts" value="${h}">${h}</option>
+		</select>
+        </label>
+        <br/><br/>
+        <label>Categories<br/>
+		<select size="6" id="cat" name="category" multiple="multiple"  style="width: 150px;">
+		  <option py:for="c in categories" value="${c}">${c}</option>
+		</select>
+        </label>
+        <ol style="list-style-type: none">
+            <li><input type="radio" name="period" value="yearly"/>yearly</li>
+            <li><input type="radio" name="period" value="monthly"/>monthly</li>
+            <li><input type="radio" name="period" value="weekly"/>weekly</li>
+            <li><input type="radio" name="period" value="daily" checked="checked"/>daily</li>
+        </ol>
+      </div>
+      <div id="stats" style="width: 520px; float:left; padding-right: 20px">
+      </div>
+	</div>
   </body>
 </html>
